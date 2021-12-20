@@ -1,160 +1,27 @@
-const data = `--- scanner 0 ---
-404,-588,-901
-528,-643,409
--838,591,734
-390,-675,-793
--537,-823,-458
--485,-357,347
--345,-311,381
--661,-816,-575
--876,649,763
--618,-824,-621
-553,345,-567
-474,580,667
--447,-329,318
--584,868,-557
-544,-627,-890
-564,392,-477
-455,729,728
--892,524,684
--689,845,-530
-423,-701,434
-7,-33,-71
-630,319,-379
-443,580,662
--789,900,-551
-459,-707,401
-
---- scanner 1 ---
-686,422,578
-605,423,415
-515,917,-361
--336,658,858
-95,138,22
--476,619,847
--340,-569,-846
-567,-361,727
--460,603,-452
-669,-402,600
-729,430,532
--500,-761,534
--322,571,750
--466,-666,-811
--429,-592,574
--355,545,-477
-703,-491,-529
--328,-685,520
-413,935,-424
--391,539,-444
-586,-435,557
--364,-763,-893
-807,-499,-711
-755,-354,-619
-553,889,-390
-
---- scanner 2 ---
-649,640,665
-682,-795,504
--784,533,-524
--644,584,-595
--588,-843,648
--30,6,44
--674,560,763
-500,723,-460
-609,671,-379
--555,-800,653
--675,-892,-343
-697,-426,-610
-578,704,681
-493,664,-388
--671,-858,530
--667,343,800
-571,-461,-707
--138,-166,112
--889,563,-600
-646,-828,498
-640,759,510
--630,509,768
--681,-892,-333
-673,-379,-804
--742,-814,-386
-577,-820,562
-
---- scanner 3 ---
--589,542,597
-605,-692,669
--500,565,-823
--660,373,557
--458,-679,-417
--488,449,543
--626,468,-788
-338,-750,-386
-528,-832,-391
-562,-778,733
--938,-730,414
-543,643,-506
--524,371,-870
-407,773,750
--104,29,83
-378,-903,-323
--778,-728,485
-426,699,580
--438,-605,-362
--469,-447,-387
-509,732,623
-647,635,-688
--868,-804,481
-614,-800,639
-595,780,-596
-
---- scanner 4 ---
-727,592,562
--293,-554,779
-441,611,-461
--714,465,-776
--743,427,-804
--660,-479,-426
-832,-632,460
-927,-485,-438
-408,393,-506
-466,436,-512
-110,16,151
--258,-428,682
--393,719,612
--211,-452,876
-808,-476,-593
--575,615,604
--485,667,467
--680,325,-822
--627,-443,-432
-872,-547,-609
-833,512,582
-807,604,487
-839,-516,451
-891,-625,532
--652,-548,-490
-30,-46,-14`;
-
+// Setup
+const data = document.body.innerText;
 const scanner_data = data.split('\n\n').map(
   block => block.split('\n').slice(1).map(line => line.split(',').map(x => parseInt(x)))
 );
 
-const orientations = [
+const ORIENTATIONS = [
   [1,1,1],[1,1,-1],[1,-1,1],[1,-1,-1],
   [-1,1,1],[-1,1,-1],[-1,-1,1],[-1,-1,-1],
 ];
+const REORDERINGS = [[0,1,2],[0,2,1],[1,0,2],[1,2,0],[2,0,1],[2,1,0]];
 
 const moveToPoint = (data, point) => data.map(p => p.map((coord, i) => coord - point[i]));
+
 const pointsInCommon = (data1, data2) => data1.filter(
   point1 => data2.some(point2 => point1.every((coord, i) => coord === point2[i]))
 );
 
-const get12CommonPoints = (rotation, data_B) => {
-  for (const point_A of rotation) {
+const get12CommonPoints = (data_A, data_B) => {
+  for (const point_A of data_A) {
     for (const point_B of data_B) {
-      const moved_to_point   = moveToPoint(rotation, point_A);
-      const moved_to_point_B = moveToPoint(data_B, point_B);
-      const common_points = pointsInCommon(moved_to_point, moved_to_point_B);
+      const data_A_moved   = moveToPoint(data_A, point_A);
+      const data_B_moved = moveToPoint(data_B, point_B);
+      const common_points = pointsInCommon(data_A_moved, data_B_moved);
       if (common_points.length >= 12) {
         const correct_A_points = moveToPoint(common_points, point_A.map(c => -c));
         const correct_B_points = moveToPoint(common_points, point_B.map(c => -c));
@@ -167,52 +34,93 @@ const get12CommonPoints = (rotation, data_B) => {
   }
 };
 
-const getScannersRelativePosition = (data_1, data_2) => {
-  const all_data_1_rotations = orientations.map(
-    orientation => data_1.map(point => point.map((coord, i) => coord * orientation[i]))
+const getScannersRelativePosition = (data_A, data_B) => {
+  const all_data_A_rotations = ORIENTATIONS.map(
+    orientation => data_A.map(point => point.map((coord, i) => coord * orientation[i]))
   )
-    .reduce((data_rotations, data_block) => data_rotations.concat([
-      data_block,
-      data_block.map(point => [point[0], point[2], point[1]]),
-      data_block.map(point => [point[1], point[0], point[2]]),
-      data_block.map(point => [point[1], point[2], point[0]]),
-      data_block.map(point => [point[2], point[0], point[1]]),
-      data_block.map(point => [point[2], point[1], point[0]]),
-    ]), []);
-
-  for(let rotation_index = 0; rotation_index < all_data_1_rotations.length; ++rotation_index){
-    const rotation = all_data_1_rotations[rotation_index];
-    const twelve_common_points = get12CommonPoints(rotation, data_2);
+    .reduce((data_rotations, data_block) => data_rotations.concat(
+      REORDERINGS.map(reorder => data_block.map(point => [
+        point[reorder[0]],
+        point[reorder[1]],
+        point[reorder[2]],
+      ]))
+    ), []);
+  for(let rotation_index = 0; rotation_index < all_data_A_rotations.length; ++rotation_index){
+    const rotation = all_data_A_rotations[rotation_index];
+    const twelve_common_points = get12CommonPoints(rotation, data_B);
     if (twelve_common_points) {
       const { block_A_points, block_B_points } = twelve_common_points;
-      const scanner_1_position_from_2 = block_A_points[0].map(
+      const scanner_A_position_from_B = block_A_points[0].map(
         (coord, index) => block_B_points[0][index] - coord
       );
-      console.log(twelve_common_points);
+      const rotation = ORIENTATIONS[Math.floor(rotation_index/6)];
+      const reorder  = REORDERINGS[rotation_index%6];
       return {
-        rotation: [0,1,2],
-        position: scanner_1_position_from_2,
+        rotation,
+        reorder,
+        position: scanner_A_position_from_B,
       };
     }
   }
+  return null;
 };
 
-const getScannerPositions = scanner_data => {
+const transformPosition = (position, rotation, reorder, translation) => position
+  .map((coord, index) => rotation[index]*coord)
+  .map((coord, index, pos) => translation[index] + pos[reorder[index]]);
+
+const getScannersInfo = raw_scanner_data => {
   // Get positions relative to scanner 0
+  let scanner_data = raw_scanner_data.slice(0);
   let scanner_position_info = new Array(scanner_data.length).fill(null);
   let scanners_done = [];
-  scanner_position_info[0] = {
-    rotation: [0,1,2],
-    position: [0,0,0],
-  };
-  console.log(scanner_position_info);
+  scanner_position_info[0] = [0,0,0];
   while (scanner_position_info.some(info => !info)) {
     const scanner_to_use = scanner_position_info
       .map((x, i) => i)
       .filter(i => !scanners_done.includes(i) && scanner_position_info[i])[0];
-    console.log('Using', scanner_to_use);
-    
+    const position = scanner_position_info[scanner_to_use];
+    const new_scanner_info = scanner_data.map((data, i) => {
+      if (scanner_position_info[i]) return;
+      return getScannersRelativePosition(scanner_data[i], scanner_data[scanner_to_use]);
+    });
+    new_scanner_info.forEach((info, i) => {
+      if (info) {
+        scanner_position_info[i] = info.position;
+        scanner_data[i] = scanner_data[i].map(
+          point => transformPosition(point, info.rotation, info.reorder, info.position)
+        );
+      }
+    });
+    scanners_done = scanners_done.concat(scanner_to_use);
   }
-  return scanner_position_info;
+  return {
+    scanner_position_info,
+    scanner_data,
+  };
 };
-const scanner_positions = getScannerPositions(scanner_data);
+const scanners_info = getScannersInfo(scanner_data);
+
+// A
+const all_beacons = [...new Set(scanners_info.scanner_data.reduce((all_data, scanner_data) =>
+  all_data.concat(scanner_data.map(beacon => JSON.stringify(beacon)))
+, []))];
+const result_A = all_beacons.length;
+
+// B
+const getDistance = (point_1, point_2) => point_1.map(
+  (coord, index) => Math.abs(coord - point_2[index])
+).reduce((sum, coord) => sum + coord, 0);
+
+const getMaxDistanceScanners = scanners_info => {
+  let max_distance = 0;
+  const positions = scanners_info.scanner_position_info;
+  for (const scanner_1 of positions) {
+    for (const scanner_2 of positions) {
+      const distance = getDistance(scanner_1, scanner_2);
+      if (distance > max_distance) max_distance = distance;
+    }
+  }
+  return max_distance;
+};
+const result_B = getMaxDistanceScanners(scanners_info);
